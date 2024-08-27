@@ -1,10 +1,10 @@
 import org.yaml.snakeyaml.Yaml;
+import org.yaml.snakeyaml.constructor.Constructor;
 
 import java.io.FileInputStream;
 import java.io.InputStream;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
 public class EventRoutingConfigUtil {
 
@@ -18,25 +18,43 @@ public class EventRoutingConfigUtil {
             // Initialize EventRoutingConfig
             EventRoutingConfig config = new EventRoutingConfig();
 
-            // Extract and set the 'origins' map
+            // Extract and set 'origins'
             Map<String, String> origins = (Map<String, String>) ((Map<String, Object>) yamlMap.get("event-routing")).get("origins");
             config.setOrigins(origins);
 
-            // Extract and set 'destinationCopybookToRoutingMap'
-            Map<String, String> destinationCopybookToRoutingMap = (Map<String, String>) ((Map<String, Object>) yamlMap.get("event-routing")).get("destination-copybook-to-routing-map");
-            config.setDestinationCopybookToRoutingMap(destinationCopybookToRoutingMap);
+            // Manually map 'destination-routingKey-map'
+            Map<String, List<Map<String, Object>>> rawDestinationRoutingKeyMap = 
+                (Map<String, List<Map<String, Object>>>) ((Map<String, Object>) yamlMap.get("event-routing")).get("destination-routingKey-map");
+            
+            Map<String, List<Destination>> destinationRoutingKeyMap = new HashMap<>();
 
-            // Extract and set 'destinationRoutingKeyMap'
-            Map<String, List<Destination>> destinationRoutingKeyMap = (Map<String, List<Destination>>) ((Map<String, Object>) yamlMap.get("event-routing")).get("destination-routingKey-map");
+            for (Map.Entry<String, List<Map<String, Object>>> entry : rawDestinationRoutingKeyMap.entrySet()) {
+                List<Destination> destinations = new ArrayList<>();
+                for (Map<String, Object> rawDestination : entry.getValue()) {
+                    Destination destination = new Destination();
+                    destination.setType(DestinationType.valueOf((String) rawDestination.get("type")));
+                    destination.setName((String) rawDestination.get("name"));
+                    destination.setEnabled((Boolean) rawDestination.get("enabled"));
+
+                    // Map additional headers if present
+                    if (rawDestination.containsKey("additional-headers")) {
+                        List<Map<String, String>> rawHeaders = (List<Map<String, String>>) rawDestination.get("additional-headers");
+                        List<HeaderDetails> headers = new ArrayList<>();
+                        for (Map<String, String> rawHeader : rawHeaders) {
+                            HeaderDetails header = new HeaderDetails();
+                            header.setHeaderName(rawHeader.get("header-name"));
+                            header.setHeaderPath(rawHeader.get("header-path"));
+                            headers.add(header);
+                        }
+                        destination.setAdditionalHeaders(headers);
+                    }
+
+                    destinations.add(destination);
+                }
+                destinationRoutingKeyMap.put(entry.getKey(), destinations);
+            }
+
             config.setDestinationRoutingKeyMap(destinationRoutingKeyMap);
-
-            // Extract and set 'originPopulateCopybook'
-            Map<String, List<String>> originPopulateCopybook = (Map<String, List<String>>) ((Map<String, Object>) yamlMap.get("event-routing")).get("originPopulateCopybook");
-            config.setOriginPopulateCopybook(originPopulateCopybook);
-
-            // Extract and set 'filterCopybookByPublisher'
-            Map<String, Set<String>> filterCopybookByPublisher = (Map<String, Set<String>>) ((Map<String, Object>) yamlMap.get("event-routing")).get("filter-copybook-by-publisher");
-            config.setFilterCopybookByPublisher(filterCopybookByPublisher);
 
             // Debug output to verify the extracted data
             System.out.println("Loaded Event Routing Config: " + config);
