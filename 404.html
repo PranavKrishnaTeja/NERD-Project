@@ -1,10 +1,8 @@
 import org.yaml.snakeyaml.Yaml;
-import org.yaml.snakeyaml.constructor.Constructor;
 
 import java.io.FileInputStream;
 import java.io.InputStream;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 public class EventRoutingConfigUtil {
 
@@ -19,24 +17,52 @@ public class EventRoutingConfigUtil {
             EventRoutingConfig config = new EventRoutingConfig();
 
             // Extract and set 'origins'
-            Map<String, String> origins = (Map<String, String>) ((Map<String, Object>) yamlMap.get("event-routing")).get("origins");
-            config.setOrigins(origins);
+            config.setOrigins(castToMapOfStringString(((Map<String, Object>) yamlMap.get("event-routing")).get("origins")));
 
-            // Manually map 'destination-routingKey-map'
-            Map<String, List<Map<String, Object>>> rawDestinationRoutingKeyMap = 
-                (Map<String, List<Map<String, Object>>>) ((Map<String, Object>) yamlMap.get("event-routing")).get("destination-routingKey-map");
-            
-            Map<String, List<Destination>> destinationRoutingKeyMap = new HashMap<>();
+            // Extract and set 'destination-routingKey-map'
+            config.setDestinationRoutingKeyMap(castToDestinationMap(((Map<String, Object>) yamlMap.get("event-routing")).get("destination-routingKey-map")));
 
-            for (Map.Entry<String, List<Map<String, Object>>> entry : rawDestinationRoutingKeyMap.entrySet()) {
+            // Extract and set 'destinationCopybookToRoutingMap'
+            config.setDestinationCopybookToRoutingMap(castToMapOfStringString(((Map<String, Object>) yamlMap.get("event-routing")).get("destination-copybook-to-routing-map")));
+
+            // Extract and set 'originPopulateCopybook'
+            config.setOriginPopulateCopybook(castToMapOfStringList(((Map<String, Object>) yamlMap.get("event-routing")).get("originPopulateCopybook")));
+
+            // Extract and set 'filterCopybookByPublisher'
+            config.setFilterCopybookByPublisher(castToMapOfStringSet(((Map<String, Object>) yamlMap.get("event-routing")).get("filter-copybook-by-publisher")));
+
+            // Debug output to verify the extracted data
+            System.out.println("Loaded Event Routing Config: " + config);
+
+            return config;
+        } catch (Exception e) {
+            e.printStackTrace();
+            return null;
+        }
+    }
+
+    // Utility method to cast objects to Map<String, String>
+    private static Map<String, String> castToMapOfStringString(Object obj) {
+        if (obj instanceof Map) {
+            return (Map<String, String>) obj;
+        }
+        return Collections.emptyMap();
+    }
+
+    // Utility method to cast objects to Map<String, List<Destination>>
+    private static Map<String, List<Destination>> castToDestinationMap(Object obj) {
+        Map<String, List<Destination>> destinationMap = new HashMap<>();
+        if (obj instanceof Map) {
+            Map<String, List<Map<String, Object>>> rawMap = (Map<String, List<Map<String, Object>>>) obj;
+            for (String key : rawMap.keySet()) {
                 List<Destination> destinations = new ArrayList<>();
-                for (Map<String, Object> rawDestination : entry.getValue()) {
+                for (Map<String, Object> rawDestination : rawMap.get(key)) {
                     Destination destination = new Destination();
                     destination.setType(DestinationType.valueOf((String) rawDestination.get("type")));
                     destination.setName((String) rawDestination.get("name"));
                     destination.setEnabled((Boolean) rawDestination.get("enabled"));
 
-                    // Map additional headers if present
+                    // Handle additional headers
                     if (rawDestination.containsKey("additional-headers")) {
                         List<Map<String, String>> rawHeaders = (List<Map<String, String>>) rawDestination.get("additional-headers");
                         List<HeaderDetails> headers = new ArrayList<>();
@@ -48,21 +74,32 @@ public class EventRoutingConfigUtil {
                         }
                         destination.setAdditionalHeaders(headers);
                     }
-
                     destinations.add(destination);
                 }
-                destinationRoutingKeyMap.put(entry.getKey(), destinations);
+                destinationMap.put(key, destinations);
             }
-
-            config.setDestinationRoutingKeyMap(destinationRoutingKeyMap);
-
-            // Debug output to verify the extracted data
-            System.out.println("Loaded Event Routing Config: " + config);
-
-            return config;
-        } catch (Exception e) {
-            e.printStackTrace();
-            return null;
         }
+        return destinationMap;
+    }
+
+    // Utility method to cast objects to Map<String, List<String>>
+    private static Map<String, List<String>> castToMapOfStringList(Object obj) {
+        if (obj instanceof Map) {
+            return (Map<String, List<String>>) obj;
+        }
+        return Collections.emptyMap();
+    }
+
+    // Utility method to cast objects to Map<String, Set<String>>
+    private static Map<String, Set<String>> castToMapOfStringSet(Object obj) {
+        if (obj instanceof Map) {
+            Map<String, List<String>> rawMap = (Map<String, List<String>>) obj;
+            Map<String, Set<String>> resultMap = new HashMap<>();
+            for (String key : rawMap.keySet()) {
+                resultMap.put(key, new HashSet<>(rawMap.get(key)));
+            }
+            return resultMap;
+        }
+        return Collections.emptyMap();
     }
 }
