@@ -1,20 +1,27 @@
 import org.yaml.snakeyaml.Yaml;
-import org.yaml.snakeyaml.constructor.Constructor;
 import java.io.FileInputStream;
 import java.io.InputStream;
+import java.util.Map;
 
 public class EventRoutingConfigUtil {
 
     public static EventRoutingConfig readyYml() {
         try {
-            // Initialize Yaml parser with EventRoutingConfig as the root
-            Yaml yaml = new Yaml(new Constructor(EventRoutingConfig.class));
+            // Load the entire YAML file into a Map
+            Yaml yaml = new Yaml();
             InputStream inputStream = new FileInputStream("src/test/resources/application-test.yml");
+            Map<String, Object> yamlMap = yaml.load(inputStream);
 
-            // Parse YAML to EventRoutingConfig object
-            EventRoutingConfig config = yaml.load(inputStream);
+            // Extract only the "event-routing" section
+            Map<String, Object> eventRoutingMap = (Map<String, Object>) yamlMap.get("event-routing");
 
-            // Return the populated config
+            // Convert the event-routing section into the EventRoutingConfig class
+            Yaml eventRoutingYaml = new Yaml();
+            String eventRoutingYamlString = eventRoutingYaml.dump(eventRoutingMap);
+            EventRoutingConfig config = eventRoutingYaml.loadAs(eventRoutingYamlString, EventRoutingConfig.class);
+
+            System.out.println("Loaded Event Routing Config: " + config);
+
             return config;
         } catch (Exception e) {
             e.printStackTrace();
