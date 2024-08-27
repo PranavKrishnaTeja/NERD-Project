@@ -1,7 +1,10 @@
 import org.yaml.snakeyaml.Yaml;
+
 import java.io.FileInputStream;
 import java.io.InputStream;
+import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 public class EventRoutingConfigUtil {
 
@@ -12,14 +15,30 @@ public class EventRoutingConfigUtil {
             InputStream inputStream = new FileInputStream("src/test/resources/application-test.yml");
             Map<String, Object> yamlMap = yaml.load(inputStream);
 
-            // Extract only the "event-routing" section
-            Map<String, Object> eventRoutingMap = (Map<String, Object>) yamlMap.get("event-routing");
+            // Initialize EventRoutingConfig
+            EventRoutingConfig config = new EventRoutingConfig();
 
-            // Convert the event-routing section into the EventRoutingConfig class
-            Yaml eventRoutingYaml = new Yaml();
-            String eventRoutingYamlString = eventRoutingYaml.dump(eventRoutingMap);
-            EventRoutingConfig config = eventRoutingYaml.loadAs(eventRoutingYamlString, EventRoutingConfig.class);
+            // Extract and set the 'origins' map
+            Map<String, String> origins = (Map<String, String>) ((Map<String, Object>) yamlMap.get("event-routing")).get("origins");
+            config.setOrigins(origins);
 
+            // Extract and set 'destinationCopybookToRoutingMap'
+            Map<String, String> destinationCopybookToRoutingMap = (Map<String, String>) ((Map<String, Object>) yamlMap.get("event-routing")).get("destination-copybook-to-routing-map");
+            config.setDestinationCopybookToRoutingMap(destinationCopybookToRoutingMap);
+
+            // Extract and set 'destinationRoutingKeyMap'
+            Map<String, List<Destination>> destinationRoutingKeyMap = (Map<String, List<Destination>>) ((Map<String, Object>) yamlMap.get("event-routing")).get("destination-routingKey-map");
+            config.setDestinationRoutingKeyMap(destinationRoutingKeyMap);
+
+            // Extract and set 'originPopulateCopybook'
+            Map<String, List<String>> originPopulateCopybook = (Map<String, List<String>>) ((Map<String, Object>) yamlMap.get("event-routing")).get("originPopulateCopybook");
+            config.setOriginPopulateCopybook(originPopulateCopybook);
+
+            // Extract and set 'filterCopybookByPublisher'
+            Map<String, Set<String>> filterCopybookByPublisher = (Map<String, Set<String>>) ((Map<String, Object>) yamlMap.get("event-routing")).get("filter-copybook-by-publisher");
+            config.setFilterCopybookByPublisher(filterCopybookByPublisher);
+
+            // Debug output to verify the extracted data
             System.out.println("Loaded Event Routing Config: " + config);
 
             return config;
