@@ -1,70 +1,18 @@
-import java.util.*;
+private static String mapJsonb(List<YBJsonAttributeMapping> jsonAttributeMappings, Map<String, Object> db2Row) throws JsonProcessingException {
+    ObjectNode object = objectMapper.createObjectNode();
 
-public class ComparisonResponse {
+    for (YBJsonAttributeMapping jsonAttributeMapping : jsonAttributeMappings) {
+        Object value = mapColumn(jsonAttributeMapping.getMapping(), Collections.singletonList(db2Row));
 
-    private Map<String, Object> expectedYBData;
-    private Map<String, Object> actualYBData;
-    private Map<String, List<Map<String, Object>>> db2Data;
-
-    @JsonGetter("differingFields")
-    public List<Map<String, Object>> getDifferingFields() {
-        if (expectedYBData == null || actualYBData == null) return null;
-
-        Set<String> allFieldNames = new HashSet<>();
-        allFieldNames.addAll(expectedYBData.keySet());
-        allFieldNames.addAll(actualYBData.keySet());
-
-        List<Map<String, Object>> differingFields = new ArrayList<>();
-
-        for (String fieldName : allFieldNames) {
-            Object expectedValue = expectedYBData.get(fieldName);
-            Object actualValue = actualYBData.get(fieldName);
-
-            // Enhanced null or empty check for both expected and actual values
-            if (expectedValue == null && isNullOrEmpty(actualValue)) {
-                continue; // Skip comparison if both are null or empty
-            }
-
-            if (!ComparisonUtil.compareObjects(expectedValue, actualValue)) {
-                Map<String, Object> differingField = new LinkedHashMap<>();
-                differingField.put("fieldName", fieldName);
-                differingField.put("expectedValue", expectedValue);
-                differingField.put("actualValue", actualValue);
-                differingFields.add(differingField);
-            }
+        // Handle null or empty values explicitly
+        if (value != null && !(value instanceof String && ((String) value).isEmpty())) {
+            object.putPOJO(jsonAttributeMapping.getAttributeName(), convertValueForJsonbAttribute(value));
+        } else {
+            // Handle the case where value is null or an empty string
+            // Here you can either choose to omit the key entirely or add it with an empty string or null
+            object.putPOJO(jsonAttributeMapping.getAttributeName(), "");
         }
-
-        return differingFields;
     }
 
-    // Enhanced method to check if an object is null or empty
-    private boolean isNullOrEmpty(Object obj) {
-        if (obj == null) {
-            return true;
-        }
-
-        if (obj instanceof Map) {
-            Map<?, ?> map = (Map<?, ?>) obj;
-            if (map.isEmpty()) {
-                return true;
-            }
-            // Check if all the values in the map are null or empty strings
-            for (Object value : map.values()) {
-                if (value != null && !value.toString().isEmpty()) {
-                    return false; // Found a non-null or non-empty value
-                }
-            }
-            return true;
-        } else if (obj instanceof List) {
-            return ((List<?>) obj).isEmpty();
-        } else if (obj instanceof Set) {
-            return ((Set<?>) obj).isEmpty();
-        } else if (obj instanceof Collection) {
-            return ((Collection<?>) obj).isEmpty();
-        } else if (obj.getClass().isArray()) {
-            return Array.getLength(obj) == 0;
-        }
-
-        return false;
-    }
+    return objectMapper.writeValueAsString(object);
 }
