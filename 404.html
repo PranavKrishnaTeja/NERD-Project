@@ -9,18 +9,15 @@ import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Scanner;
 
 public class SimpleQRCodeGenerator {
 
     private static final int MAX_QR_CAPACITY = 2953;  // Max capacity for large QR code version
 
-    public static void main(String[] args) {
-        // Taking user input via Scanner
-        Scanner scanner = new Scanner(System.in);
-        System.out.println("Enter a long string to generate QR codes:");
-        String longText = scanner.nextLine(); // Get input from the user
-
+    /**
+     * Method to generate and save QR codes, called from the Main class.
+     */
+    public static void generateAndSaveQRCodes(String longText) {
         // Split the long string into segments that fit into QR codes
         List<String> qrSegments = splitTextIntoQRSegments(longText, MAX_QR_CAPACITY);
 
@@ -37,7 +34,6 @@ public class SimpleQRCodeGenerator {
                 e.printStackTrace();
             }
         }
-        scanner.close();
     }
 
     /**
@@ -71,5 +67,39 @@ public class SimpleQRCodeGenerator {
 
         // Save the image to a file
         ImageIO.write(image, "PNG", new File(filePath));
+    }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+import java.util.Scanner;
+
+public class Main {
+
+    public static void main(String[] args) {
+        // Create a Scanner object to read input
+        Scanner scanner = new Scanner(System.in);
+
+        // Prompt the user to enter a long string
+        System.out.println("Enter a long string to generate QR codes:");
+
+        // Read the user's input
+        String inputText = scanner.nextLine();
+
+        // Close the scanner as we don't need further input
+        scanner.close();
+
+        // Call the QR code generator logic from the SimpleQRCodeGenerator class
+        SimpleQRCodeGenerator.generateAndSaveQRCodes(inputText);
     }
 }
