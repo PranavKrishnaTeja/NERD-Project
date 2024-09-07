@@ -1,32 +1,75 @@
-plugins {
-    id 'java'
-}
+import com.google.zxing.BarcodeFormat;
+import com.google.zxing.WriterException;
+import com.google.zxing.qrcode.QRCodeWriter;
+import com.google.zxing.common.BitMatrix;
 
-group 'com.example'
-version '1.0-SNAPSHOT'
+import javax.imageio.ImageIO;
+import java.awt.image.BufferedImage;
+import java.io.File;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Scanner;
 
-repositories {
-    // Use Maven Central to get the required libraries
-    mavenCentral()
-}
+public class SimpleQRCodeGenerator {
 
-dependencies {
-    // ZXing core library for QR code generation
-    implementation 'com.google.zxing:core:3.4.1'
-    
-    // ZXing Java SE extensions for using with BufferedImage and other Java utilities
-    implementation 'com.google.zxing:javase:3.4.1'
-    
-    // JUnit (optional) for writing and running tests if needed
-    testImplementation 'junit:junit:4.13.2'
-}
+    private static final int MAX_QR_CAPACITY = 2953;  // Max capacity for large QR code version
 
-tasks.named('test') {
-    useJUnitPlatform()
-}
+    public static void main(String[] args) {
+        // Taking user input via Scanner
+        Scanner scanner = new Scanner(System.in);
+        System.out.println("Enter a long string to generate QR codes:");
+        String longText = scanner.nextLine(); // Get input from the user
 
-java {
-    toolchain {
-        languageVersion = JavaLanguageVersion.of(8)  // Specify your Java version here, e.g., 8 or 11
+        // Split the long string into segments that fit into QR codes
+        List<String> qrSegments = splitTextIntoQRSegments(longText, MAX_QR_CAPACITY);
+
+        // Generate QR codes for each segment
+        for (int i = 0; i < qrSegments.size(); i++) {
+            String segment = qrSegments.get(i);
+            System.out.println("QR Segment " + (i + 1) + ": " + segment);
+
+            // Generate and save the QR code image
+            try {
+                generateQRCode(segment, "QRCode_" + (i + 1) + ".png");
+                System.out.println("Generated QRCode_" + (i + 1) + ".png");
+            } catch (WriterException | IOException e) {
+                e.printStackTrace();
+            }
+        }
+        scanner.close();
+    }
+
+    /**
+     * Splits the input text into multiple segments that fit into individual QR codes.
+     */
+    public static List<String> splitTextIntoQRSegments(String text, int maxSegmentSize) {
+        List<String> segments = new ArrayList<>();
+        int startIndex = 0;
+        while (startIndex < text.length()) {
+            int endIndex = Math.min(startIndex + maxSegmentSize, text.length());
+            segments.add(text.substring(startIndex, endIndex));
+            startIndex = endIndex;
+        }
+        return segments;
+    }
+
+    /**
+     * Generates a simple QR code for the input text and saves it to a file.
+     */
+    public static void generateQRCode(String text, String filePath) throws WriterException, IOException {
+        QRCodeWriter qrCodeWriter = new QRCodeWriter();
+        BitMatrix bitMatrix = qrCodeWriter.encode(text, BarcodeFormat.QR_CODE, 200, 200);
+
+        // Convert BitMatrix to BufferedImage
+        BufferedImage image = new BufferedImage(200, 200, BufferedImage.TYPE_INT_RGB);
+        for (int x = 0; x < 200; x++) {
+            for (int y = 0; y < 200; y++) {
+                image.setRGB(x, y, bitMatrix.get(x, y) ? 0x000000 : 0xFFFFFF);
+            }
+        }
+
+        // Save the image to a file
+        ImageIO.write(image, "PNG", new File(filePath));
     }
 }
