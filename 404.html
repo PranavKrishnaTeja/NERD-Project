@@ -1,18 +1,32 @@
-private static String mapJsonb(List<YBJsonAttributeMapping> jsonAttributeMappings, Map<String, Object> db2Row) throws JsonProcessingException {
-    ObjectNode object = objectMapper.createObjectNode();
+private static Set<String> getColumnNamesForTable(String db2TableName, TableMappingConfig.Mapping mapping) {
+    if (db2TableName == null || mapping == null) return Collections.emptySet();
 
-    for (YBJsonAttributeMapping jsonAttributeMapping : jsonAttributeMappings) {
-        Object value = mapColumn(jsonAttributeMapping.getMapping(), Collections.singletonList(db2Row));
+    Set<String> columnNames = new HashSet<>();
 
-        // Handle null or empty values explicitly
-        if (value != null && !(value instanceof String && ((String) value).isEmpty())) {
-            object.putPOJO(jsonAttributeMapping.getAttributeName(), convertValueForJsonbAttribute(value));
-        } else {
-            // Handle the case where value is null or an empty string
-            // Here you can either choose to omit the key entirely or add it with an empty string or null
-            object.putPOJO(jsonAttributeMapping.getAttributeName(), "");
+    // Handle DIRECT mapping
+    if (mapping.getType() == MappingType.DIRECT && Objects.equals(db2TableName, mapping.getTable())) {
+        columnNames.add(mapping.getColumn());
+        columnNames.addAll(getColumnsForCondition(mapping.getCondition()));
+    } 
+    // Handle JSONB mapping
+    else if (mapping.getType() == MappingType.JSONB) {
+        for (TableMappingConfig.YBJsonAttributeMapping jsonAttributeMapping : mapping.getJsonbAttributeMappings()) {
+            columnNames.addAll(getColumnNamesForTable(db2TableName, jsonAttributeMapping.getMapping().asMapping()));
         }
     }
+    // Handle JSONB_MAP mapping
+    else if (mapping.getType() == MappingType.JSONB_MAP) {
+        for (TableMappingConfig.NestedDirectMapping mapKeyMapping : mapping.getMapKeyMappings()) {
+            columnNames.addAll(getColumnNamesForTable(db2TableName, mapKeyMapping.asMapping()));
+        }
+    } 
+    // Handle STRING_MAP mapping
+    else if (mapping.getType() == MappingType.STRING_MAP) {
+        for (TableMappingConfig.NestedDirectMapping mapKeyMapping : mapping.getMapKeyMappings()) {
+            columnNames.addAll(getColumnNamesForTable(db2TableName, mapKeyMapping.asMapping()));
+        }
+        columnNames.addAll(getColumnNamesForTable(db2TableName, mapping.getStringMapValueMapping().asMapping()));
+    }
 
-    return objectMapper.writeValueAsString(object);
+    return columnNames;
 }
